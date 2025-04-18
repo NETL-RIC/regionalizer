@@ -1,4 +1,6 @@
 # README
+Find this resource on NETL's [Energy Data eXchange](https://edx.netl.doe.gov/dataset/python-regionalizer)!
+
 A "universal" spatial translation method from any given spatial extent to the U.S. census tract level.
 
 This method is designed for disaggregation of numeric attributes from a larger spatial scale (e.g., state level) down to the census tract or county; it was not tested for upscaling.
