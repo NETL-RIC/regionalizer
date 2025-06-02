@@ -114,6 +114,8 @@ __all__ = [
 ##############################################################################
 # GLOBALS
 ##############################################################################
+BA_YEAR_MAX = 2024
+BA_YEAR_MIN = 2000
 BA_YEAR = 2020
 '''int : Data vintage for Energy Atlas balancing authorities.'''
 CENSUS_YEAR = 2020
@@ -157,6 +159,161 @@ WOPTS = ['A', 'Eq','Cen']
 '''list : Abbreviations of available weighting options.'''
 _loggers = {}
 '''dict : A dictionary for storing logging instances.'''
+
+
+##############################################################################
+# CLASSES
+##############################################################################
+class Regionalizer(object):
+    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    # Class Global Variables
+    # ////////////////////////////////////////////////////////////////////////
+    BA_YEAR = 2020
+    '''int : Data vintage for Energy Atlas balancing authorities.'''
+    CENSUS_YEAR = 2020
+    '''int : Data vintage for US Census Bureau's data (2020--2023).'''
+    DATA_DIR = "inputs"
+    '''str: Local directory for storing data files.'''
+    EOPTS = ['CT','BA', 'NB', 'CB', 'ST','NS','CO', ]
+    '''list : Abbreviations of available ending region options.'''
+    IO_PR_LIMIT = True
+    '''bool : Whether to limit the progress bar message to a threshold.'''
+    IO_PR_FRACTION = 0.01
+    '''bool : The fraction of progress bar messages to show (larger == less).'''
+    ROPTS = ['BA', 'NB', 'CB', 'ST','NS','CO', 'EM']
+    '''list : Abbreviations of available starting region options.'''
+    STATE_FILTER = ['PR', 'MP', 'AS', 'GU', 'VI']
+    '''list : List of state and territory codes to remove from census data.'''
+    SHAPES_DIR = os.path.join(DATA_DIR, "shapes")
+    '''str : Local directory for storing GeoJSON and shapefile files.'''
+    MATRIX_DIR = os.path.join(DATA_DIR, "matrices")
+    '''str : Local directory for storing M files.'''
+    PCS = ('esri', 102009)
+    '''tuple: Geopandas CRS info for North America Lambert Conformal Conic.'''
+    SPATIAL_LV = pd.Series(
+        [5, 4, 4, 3, 3, 3, 2, 1],
+        index=["EM", "NS", "BA", "CB", "NB", "ST", "CO", "CT"]
+    )
+    '''pandas.Series : Spatial/regional hierarchy levels.'''
+    SPATIAL_LV_DESC = pd.Series(
+        ["Electricity Market Module Regions (EIA)",
+        "NERC Subregions (EIA)",
+        "Balancing Authorities (U.S. Energy Atlas)",
+        "Coal Basins (EIA)",
+        "Natural Gas Basins (EPA)",
+        "U.S. States (Census Bureau)",
+        "U.S. Counties (Census Bureau)",
+        "U.S. Census Tracts (Census Bureau)"],
+        index=["EM", "NS", "BA", "CB", "NB", "ST", "CO", "CT"]
+    )
+    '''pandas.Series : Spatial/regional hierarchy level descriptions.'''
+    WOPTS = ['A', 'Eq','Cen']
+    '''list : Abbreviations of available weighting options.'''
+
+    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    # Class Initialization
+    # ////////////////////////////////////////////////////////////////////////
+    def __init__(self):
+        # Create a class-level logger
+        self.log = logging.getLogger("Regionalizer")
+
+        # Turn off IO limited if not in Jupyter environment.
+        _is_jupyter = is_running_jupyter()
+        if not _is_jupyter:
+            self.IO_PR_LIMIT = False
+
+        # Set default options
+        self._show_progress = True
+
+        # Store the user's options.
+        self._ba_year = None
+        self._census_year = None
+        self._end_extent = None
+        self._start_extent = None
+
+    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    # Class Property Definitions
+    # ////////////////////////////////////////////////////////////////////////
+    @property
+    def ba_year(self):
+        if self._ba_year is None:
+            return self.BA_YEAR
+        else:
+            return self._ba_year
+
+    @ba_year.setter
+    def ba_year(self, val):
+        if not isinstance(val, int):
+            try:
+                my_val = int(val)
+            except ValueError:
+                raise TypeError("the BA year must be an integer!")
+            else:
+                val = my_val
+        self._ba_year = val
+
+    @property
+    def census_year(self):
+        if self._census_year is None:
+            return self.CENSUS_YEAR
+        else:
+            return self._census_year
+
+    @census_year.setter
+    def census_year(self, val):
+        if not isinstance(val, int):
+            try:
+                my_val = int(val)
+            except ValueError:
+                raise TypeError("the census year must be an integer!")
+            else:
+                val = my_val
+        self._census_year = val
+
+    @property
+    def end_extent(self):
+        # Alias
+        return self._end_extent
+
+    @property
+    def ending_region(self):
+        # Alias
+        return self._end_extent
+
+    @property
+    def start_extent(self):
+        # Alias
+        return self._start_extent
+
+    @property
+    def starting_region(self):
+        # Alias
+        return self._start_extent
+
+    @property
+    def ending_options(self):
+        return self.SPATIAL_LV_DESC[self.SPATIAL_LV_DESC.index.isin(self.EOPTS)]
+
+    @property
+    def starting_options(self):
+        return self.SPATIAL_LV_DESC[self.SPATIAL_LV_DESC.index.isin(self.ROPTS)]
+
+    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    # Class Method Definitions
+    # ////////////////////////////////////////////////////////////////////////
+    def show_end_extents(self):
+        """Display names and abbreviations for ending extent options."""
+        print("Abbr\tDescription")
+        print("----\t-----------")
+        for idx, val in self.ending_options.items():
+            print("%s\t%s" % (idx, val))
+
+    def show_start_extents(self):
+        """Display names and abbreviations for starting extent options."""
+        print("Abbr\tDescription")
+        print("----\t-----------")
+        for idx, val in self.starting_options.items():
+            print("%s\t%s" % (idx, val))
 
 
 ##############################################################################
@@ -1627,6 +1784,21 @@ def get_state_geo(year, region, make_prj=False):
         gdf = gdf[gdf['STATEFP'] == region]
     gdf = gdf.drop(columns=drop_cols)
     return gdf
+
+
+def is_running_jupyter():
+    """A helper method to determine if user is in a Jupyter environment."""
+    try:
+        from IPython import get_ipython
+        shell = get_ipython()
+        if shell is None:
+            return False
+        # Thanks, G. Bezerra! https://stackoverflow.com/a/39662359
+        if shell.__class__.__name__ != 'ZMQInteractiveShell':
+            return False
+        return True
+    except ImportError:
+        return False
 
 
 def print_progress(iteration, total, prefix='', suffix='', decimals=0,
