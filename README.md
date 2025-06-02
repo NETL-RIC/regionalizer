@@ -25,25 +25,28 @@ The 'M' matrices can be created using the `get_m` function.
 ```python
 from regionalizer import get_m
 
-M, codes, cen_codes = get_m(starting_extent='ST',
-                            ending_extent = 'CT',
+M, codes, cen_codes = get_m(start_extent='ST',
+                            end_extent = 'CT',
                             weighting='Eq',
-                            state='US')`
+                            state='US',
+                            ba_year=2020)`
 ```
 
--   `starting_extent` refers to the regional level on which data is given for conversion to the census tract (or county) level.
+-   `start_extent` refers to the regional level on which data is given for conversion to the census tract (or county) level.
     Currently supports one of "BA" (balancing authority), "CB" (Coal basin), "NB" (natural gas basin), "ST" (state), "CO" (county), and "NS" (NERC sub-region).
     This can also be modified to include other spatial extents.
--   `ending_extent` refers to the regional level to which the data is converted.
+-   `end_extent` refers to the regional level to which the data is converted.
     Currently supports one of "CT" (census tract) or "CO" (county).
     The code was developed to convert to the census tract level, but has been expanded to include county as well.
--   `Weighting` refers to the type of weighting applied. Currently supports either "A" (areal weighting, or impact proportional to area), or "Eq" (Equal weighting, impact equal for all census tracts in a given spatial extent).
+-   `weighting` refers to the type of weighting applied.
+    Currently supports "A" (areal weighting, or impact proportional to area), or "Eq" (Equal weighting, impact equal for all census tracts in a given spatial extent).
 -   `state` refers to the state for which census tracts are used.
     Choose by state (e.g., '54' is West Virginia).
     Note that these are strings and any number less than 10 needs a zero padding.
     Use 'US' for the entire United States.
+-   `ba_year` allows for the balancing authority spatial dataset to be filtered by their operational status; defaults to 2020.
 
-Note that this may take some time to run, particularly when state='US', as a result of the volume of data being processed.
+Note that this may take some time to run, particularly when end_extent='CT' and state='US', as a result of the volume of data being processed.
 However, once the 'M' matrix is created, it can be reused, and subsequent calculations should be able to be performed fairly quickly.
 The `get_m` function will automatically store the M matrix as a text document in the outputs folder, and retrieve it the next time the function is run with the same inputs.
 
@@ -65,9 +68,12 @@ There are several limitations associated with this tool in its current state, as
     If a census tract (or county) is partially uncovered, the areal weighting results may be impacted.
 4.  In the case of the equal weighting method, edge effects may come into play, where spatial extents which lie on the edge of a census tract may be counted as overlapping.
     This is particularly notable for the case of balancing authorities, where a census tract may be bordered by several balancing authorities, which could lead to up to seven balancing authorities which are considered to overlap with a particular census tract.
-5.  A space separated operator is used to store the list of unique identifiers associated with the starting spatial extents.
+5.  The unique identifiers associated with the starting and ending spatial extents is saved is a space-separated format.
     Thus, these should not have any spaces in these identifiers, as words separated by spaces will be returned as separate codes.
     The `save_m` function attempts to address this issue by replacing spaces with underscores, however it may not always be clear how to map back to the original codes.
     Thus, it is recommended to ensure that there are no spaces in the unique identifier codes being used.
 6.  There is some inconsistency among sources regarding the codes used for the balancing authorities GRIDFORCE SOUTH and GRIDFORCE ENERGY MANAGEMENT, LLC.
     In this case, 'GRIS' is used for GRIDFORCE SOUTH and 'GRID' is used for GRIDFORCE ENERGY MANAGEMENT, LLC.
+7.  The geographic boundary files used from the U.S. Census Bureau are generalizations.
+    The TIGER shapefile for these regions is also available, but is considerably larger is size; hence, the generalized datasets used in this method.
+8.  The Census year is not changeable in the current configuration for `get_m` method.
