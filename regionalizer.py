@@ -104,6 +104,8 @@ __all__ = [
     "read_m",
     "run_unit_test",
     "save_m",
+    "show_end_extent",
+    "show_start_extent",
     "tract_to_county",
     "tract_to_state",
 ]
@@ -133,6 +135,18 @@ SPATIAL_LV = pd.Series(
     index=["EM", "NS", "BA", "CB", "NB", "ST", "CO", "CT"]
 )
 '''pandas.Series : Spatial/regional hierarchy levels.'''
+SPATIAL_LV_DESC = pd.Series(
+    ["Electricity Market Module Regions (EIA)",
+     "NERC Subregions (EIA)",
+     "Balancing Authorities (U.S. Energy Atlas)",
+     "Coal Basins (EIA)",
+     "Natural Gas Basins (EPA)",
+     "U.S. States (Census Bureau)",
+     "U.S. Counties (Census Bureau)",
+     "U.S. Census Tracts (Census Bureau)"],
+    index=["EM", "NS", "BA", "CB", "NB", "ST", "CO", "CT"]
+)
+'''pandas.Series : Spatial/regional hierarchy level descriptions.'''
 STATE_FILTER = ['PR', 'MP', 'AS', 'GU', 'VI']
 '''list : A list of state and territory codes to remove from census tract.'''
 ROPTS = ['BA', 'NB', 'CB', 'ST','NS','CO', 'EM']
@@ -949,13 +963,13 @@ def get_census_geo(year, region, make_prj=False):
 
     Notes
     -----
-    The GIS shapefiles are published by the U.S. Census Bureau.
+    The Cartographic Boundary Files are published by the U.S. Census Bureau.
     Census tracts are areas of land within the United States that
     are home to roughly 4,000 people each.
     They always follow county lines, and may also follow boundaries
     such as municipal lines, rivers, and roads. Due to the small
     size of census tracts, this is a large shapefile, containing
-    85,187 rows in the 2020 census.
+    85,187 features in the 2020 census.
 
     Source: https://www2.census.gov/geo/tiger/GENZ2020/shp/
 
@@ -977,7 +991,7 @@ def get_census_geo(year, region, make_prj=False):
     -------
     geopandas.geodataframe.GeoDataFrame
         A geospatial data frame of polygon areas representing the U.S.
-        census tracts, with columns,
+        census tracts at 500k resolution (1:500,000), with columns,
 
         - STATEFP (str), two digit state ID (zero padded)
         - COUNTYFP (str), three digit county ID (zero padded)
@@ -1053,7 +1067,7 @@ def get_county_geo(year, region, make_prj=False):
     -------
     geopandas.geodataframe.GeoDataFrame
         A geospatial data frame of polygon areas representing the U.S.
-        counties, with columns,
+        counties at 500k resolution, with columns,
 
         -   STATEFP (str), two digit state ID (zero padded)
         -   COUNTYFP (str), three digit county ID (zero padded)
@@ -1136,6 +1150,8 @@ def get_em_geo(make_prj=False):
     The shapefile was delivered upon request to EIA on December 2, 2022.
     Available on EDX (2025-03-13):
     https://edx.netl.doe.gov/resource/7536c4db-e25b-4e48-8ac2-7da6f4e26da1/download
+
+    Available online at: https://www.eia.gov/outlooks/aeo/additional_docs.php.
 
     Parameters
     ----------
@@ -1357,8 +1373,10 @@ def get_nb_geo(correct_names=False, filter_basins=True, make_prj=False):
 
     Notes
     -----
-    Source: EIA
-    [1] https://statics.teams.cdn.office.net/evergreen-assets/safelinks/1/atp-safelinks.html
+    Source: EPA's Office of Air and Radiation (OAR)
+    and Office of Atmospheric Protection (OAP)
+    Environmental Dataset Gateway (EDG)
+    (https://edg.epa.gov/data/Public/OAR/OAP/)
 
     Parameters
     ----------
@@ -1566,7 +1584,7 @@ def get_state_geo(year, region, make_prj=False):
     -------
     geopandas.geodataframe.GeoDataFrame
         A geospatial data frame of polygon areas representing the U.S.
-        census tracts, with columns,
+        census tracts at 500k resolution, with columns,
 
         - STATEFP (str), two digit state ID (zero padded)
         - STUSPS (str), two-character state abbreviation
@@ -1577,11 +1595,11 @@ def get_state_geo(year, region, make_prj=False):
         The zipped shapefile is not publicly accessible. This error raises
         when the local file is not found.
     """
-    # Create the census file name, (e.g., "cb_2020_us_state_5m.zip")
+    # Create the census file name, (e.g., "cb_2020_us_state_500k.zip")
     if isinstance(region, int):
         region = "%02d" % region
     region = region.lower()
-    gdf_file = "cb_%d_%s_state_5m.zip"  % (year, region)
+    gdf_file = "cb_%d_%s_state_500k.zip"  % (year, region)
     gdf_path = os.path.join(SHAPES_DIR, gdf_file)
 
     # Handle missing census data files.
@@ -1804,6 +1822,22 @@ def save_m(m, b_names, m_names, m_file):
     with open(m_file, 'w') as f:
         f.write(txt)
     logging.info("Wrote matrix to %s" % m_file)
+
+
+def show_end_extents():
+    """Display names and abbreviations for ending extent options."""
+    print("Abbr\tDescription")
+    print("----\t-----------")
+    for idx, val in SPATIAL_LV_DESC[SPATIAL_LV_DESC.index.isin(EOPTS)].items():
+        print("%s\t%s" % (idx, val))
+
+
+def show_start_extents():
+    """Display names and abbreviations for starting extent options."""
+    print("Abbr\tDescription")
+    print("----\t-----------")
+    for idx, val in SPATIAL_LV_DESC[SPATIAL_LV_DESC.index.isin(ROPTS)].items():
+        print("%s\t%s" % (idx, val))
 
 
 def tract_to_county(cen):
