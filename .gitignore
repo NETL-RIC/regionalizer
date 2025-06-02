@@ -1,0 +1,7 @@
+# Basic ignore items
+.DS_Store
+.ipynb_checkpoints
+__pycache__
+
+# Don't include inputs in the repo
+inputs/*
